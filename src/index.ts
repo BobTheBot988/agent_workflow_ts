@@ -1,20 +1,53 @@
-import { query } from "@qwen-code/sdk";
+import { z } from "zod";
+import { createSdkMcpServer, query, tool } from "@qwen-code/sdk";
+
 import * as child_process from "child_process";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
 
+interface RunResult {
+  success: boolean;
+  output: string;
+}
+function build_foundry(project_dir: string): RunResult {
+  try {
+    const result = child_process.execSync(`forge build -vvv 2>&1`, {
+      encoding: "utf-8",
+      timeout: 600000,
+      cwd: project_dir,
+    });
+    return { success: true, output: result };
+  } catch (err: any) {
+    if (err && err.code === "ETIMEDOUT") {
+      return { success: false, output: "Foundry timeout" };
+    }
+    return {
+      success: false,
+      output: err?.stdout?.toString() || err?.message || String(err),
+    };
+  }
+}
+
+const foundryTool = tool(
+  "foundry_compile",
+  "build foundry projects",
+  { project_dir: z.string() },
+  async (args) => ({
+    content: [
+      {
+        type: "text",
+        text: String(build_foundry(args.project_dir)),
+      },
+    ],
+  }),
+);
 // Load .qwen/.env file
 const envPath = path.join(__dirname, "..", ".qwen", ".env");
 if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
 dotenv.config();
-
-interface RunResult {
-  success: boolean;
-  output: string;
-}
 
 function runHalmos(srcPath: string): RunResult {
   try {
@@ -104,13 +137,13 @@ async function main() {
 Implement function bodies for this Solidity contract.
 
 CONTRACT SKELETON DIRECTORY:
-${path.dirname(srcPath)}
+${srcPath}
 
 MODIFIABLE FILES:
 ${moddableFiles.map((f) => `@${f}`).join("\n")}
 
 UML/STATE MACHINE DESCRIPTION:
-${umlDescription}
+${fs.readFileSync(umlDescription)}
 
 FOUNDRY INVARIANTS:
 ${fs.readFileSync(invariantPath, "utf-8")}
@@ -121,6 +154,7 @@ REQUIREMENTS:
 - Use proper error handling (require/revert)
 - No new functions or state variables
 - Preserve exact existing structure
+- Run foundryTool to compile the project each time you actually modify the files.
 
 IMPORTANT: Use the file_editor tool to write your implementation to the moddable files.
 This will save your work so it can be verified with Foundry tests.
@@ -137,10 +171,20 @@ ${contractSkeleton}
 
   // Run the agent
   let fullResponse = "";
+  const server = createSdkMcpServer({
+    name: "foundry_utils",
+    tools: [foundryTool],
+  });
+
   for await (const message of query({
     prompt,
     options: {
       pathToQwenExecutable: "qwen",
+      cwd: srcPath,
+      permissionMode: "auto-edit",
+      mcpServers: {
+        foundry_utils: server,
+      },
     },
   })) {
     if (message.type === "assistant") {
@@ -197,13 +241,23 @@ FIX:
 `;
 
       fullResponse = "";
+      const server = createSdkMcpServer({
+        name: "foundry_utils",
+        tools: [foundryTool],
+      });
       for await (const message of query({
         prompt: refinementPrompt,
         options: {
           pathToQwenExecutable: "qwen",
+          permissionMode: "auto-edit",
+          mcpServers: {
+            foundry_utils: server,
+          },
         },
       })) {
-        if (message.type === "result" && message.subtype === "success") {
+        if (message.type === "assistant") {
+          console.log("Assistant:", message.message.content);
+        } else if (message.type === "result") {
           fullResponse += message.result;
           console.log(message.result, { stream: true });
         }

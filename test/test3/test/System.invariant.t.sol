@@ -42,9 +42,14 @@ contract SystemInvariantTest is Test {
 
         owner = makeAddr(string(abi.encodePacked("bidder", uint256(11))));
         nft = new ZPunks(owner);
-        uint256 ntfId = nft.safeMint(owner, "ipfs://test");
-
-        auction = new Auction(IERC721(address(nft)), IERC20(address(token)), ntfId, owner);
+        
+        // Create auction first
+        auction = new Auction(IERC721(address(nft)), IERC20(address(token)), 0, owner);
+        
+        // Mint NFT directly to the auction contract
+        vm.startPrank(owner);
+        nft.safeMint(address(auction), "ipfs://test");
+        vm.stopPrank();
     }
 
     function bid(uint256 amount, uint256 bidderSeed) external useBidder(bidderSeed) {
