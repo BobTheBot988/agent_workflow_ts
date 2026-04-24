@@ -5,8 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {Auction} from "../src/Auction.sol";
 import {ZPunks} from "../src/boh/RealNFT.sol";
 import {MyToken} from "../src/boh/realtoken.sol";
-import {ERC721} from "../src/ERC721.sol";
-import {ERC20} from "../src/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract SystemInvariantTest is Test {
     Auction public auction;
@@ -44,7 +44,7 @@ contract SystemInvariantTest is Test {
         nft = new ZPunks(owner);
         uint256 ntfId = nft.safeMint(owner, "ipfs://test");
 
-        auction = new Auction(ERC721(address(nft)), ERC20(address(token)), ntfId, owner);
+        auction = new Auction(IERC721(address(nft)), IERC20(address(token)), ntfId, owner);
     }
 
     function bid(uint256 amount, uint256 bidderSeed) external useBidder(bidderSeed) {
