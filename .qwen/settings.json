@@ -36,7 +36,8 @@
       "Bash(diff *)",
       "Bash(cat *)",
       "Bash(uv *)",
-      "Bash(mkdir *)"
+      "Bash(mkdir *)",
+      "Bash(npm view *)"
     ]
   },
   "model": {
