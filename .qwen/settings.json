@@ -38,6 +38,7 @@
       "Bash(uv *)",
       "Bash(mkdir *)",
       "Read(//home/softdream/Programming/probe/my-mcp-server/src/**)"
+      "Bash(npm view *)"
     ]
   },
   "model": {

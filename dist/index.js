@@ -1,44 +1,9 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-const zod_1 = require("zod");
-const sdk_1 = require("@qwen-code/sdk");
-const child_process = __importStar(require("child_process"));
-const dotenv = __importStar(require("dotenv"));
-const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
+import { z } from "zod";
+import { createSdkMcpServer, query, tool } from "@qwen-code/sdk";
+import * as child_process from "child_process";
+import * as dotenv from "dotenv";
+import * as fs from "fs";
+import * as path from "path";
 function build_foundry(project_dir) {
     try {
         const result = child_process.execSync(`forge build -vvv 2>&1`, {
@@ -58,7 +23,7 @@ function build_foundry(project_dir) {
         };
     }
 }
-const foundryTool = (0, sdk_1.tool)("foundry_compile", "build foundry projects", { project_dir: zod_1.z.string() }, async (args) => ({
+const foundryTool = tool("foundry_compile", "build foundry projects", { project_dir: z.string() }, async (args) => ({
     content: [
         {
             type: "text",
@@ -181,11 +146,11 @@ ${contractSkeleton}
     console.log("-".repeat(60));
     // Run the agent
     let fullResponse = "";
-    const server = (0, sdk_1.createSdkMcpServer)({
+    const server = createSdkMcpServer({
         name: "foundry_utils",
         tools: [foundryTool],
     });
-    for await (const message of (0, sdk_1.query)({
+    for await (const message of query({
         prompt,
         options: {
             systemPrompt: SYSTEM_PROMPT,
@@ -247,11 +212,11 @@ FIX:
 `;
             // TODO fix permission issues
             fullResponse = "";
-            const server = (0, sdk_1.createSdkMcpServer)({
+            const server = createSdkMcpServer({
                 name: "foundry_utils",
                 tools: [foundryTool],
             });
-            for await (const message of (0, sdk_1.query)({
+            for await (const message of query({
                 prompt: refinementPrompt,
                 options: {
                     systemPrompt: SYSTEM_PROMPT,
