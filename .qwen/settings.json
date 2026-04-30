@@ -37,10 +37,19 @@
       "Bash(cat *)",
       "Bash(uv *)",
       "Bash(mkdir *)",
+      "Read(//home/softdream/Programming/probe/my-mcp-server/src/**)"
       "Bash(npm view *)"
     ]
   },
   "model": {
     "name": "qwen3-apex"
+  },
+  "mcpServers": {
+    "foundryTools": {
+      "command": "/home/softdream/Programming/probe/my-mcp-server/target/release/my-mcp-server"
+    }
+  },
+  "mcp": {
+    "excluded": []
   }
 }
