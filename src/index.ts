@@ -107,6 +107,12 @@ async function main() {
     );
     process.exit(1);
   }
+  const SYSTEM_PROMPT = `You are a solidity expert your duty is to write code inside of pre-generated snippets,
+    YOU CANNOT modify lines with // UML at the end use a regex to check  if the line is modifiable: .*//\s*UML$.
+    you should use only openzeppelin stuff when neeeded, never reimplement stuff which already exists.
+    to base your implementation look at the files inside of the test/*.t.sol directory they contain the invariants of the system. 
+    you have to implement the snippets found at src/*.sol then you after everything compiles they will be tested by a fuzzy tester and z3 solver,anything
+    which will tell you if they find any problems you will finish your work when nobody tells you anything.`
 
   const srcPath = path.resolve(args[0]);
   const umlDescription = args[1];
@@ -118,7 +124,10 @@ async function main() {
     process.exit(1);
   }
 
-  const contractSkeleton = getContractSkeleton(path.dirname(srcPath));
+  // The srcPath is a file, extract its directory for cwd operations
+  const srcDir = path.dirname(srcPath);
+
+  const contractSkeleton = getContractSkeleton(srcDir);
 
   console.log("=".repeat(60));
   console.log("SOLIDITY CODE IMPLEMENTATION WORKFLOW");
@@ -179,8 +188,9 @@ ${contractSkeleton}
   for await (const message of query({
     prompt,
     options: {
+      systemPrompt: SYSTEM_PROMPT,
       pathToQwenExecutable: "qwen",
-      cwd: srcPath,
+      cwd: srcDir,
       permissionMode: "auto-edit",
       mcpServers: {
         foundry_utils: server,
@@ -209,7 +219,7 @@ ${contractSkeleton}
     console.log("=".repeat(60));
 
     console.log("\n[1/2] Running Foundry fuzzing...");
-    const contractDir = path.dirname(srcPath);
+    const contractDir = srcDir;
     const foundryResult = runFoundryTest(contractDir);
 
     if (foundryResult.success) {
@@ -239,6 +249,7 @@ FIX:
 - Fix implementation
 - Return the corrected contract for display
 `;
+      // TODO fix permission issues
 
       fullResponse = "";
       const server = createSdkMcpServer({
@@ -248,7 +259,9 @@ FIX:
       for await (const message of query({
         prompt: refinementPrompt,
         options: {
+          systemPrompt: SYSTEM_PROMPT,
           pathToQwenExecutable: "qwen",
+          cwd: srcDir,
           permissionMode: "auto-edit",
           mcpServers: {
             foundry_utils: server,

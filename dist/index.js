@@ -41,7 +41,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 function build_foundry(project_dir) {
     try {
-        const result = child_process.execSync(`forge build -vvv`, {
+        const result = child_process.execSync(`forge build -vvv 2>&1`, {
             encoding: "utf-8",
             timeout: 600000,
             cwd: project_dir,
@@ -116,6 +116,12 @@ async function main() {
         console.error("Example: ts-node src/workflow.ts ./test/test3/src ./test/test3/auction3.xmi ./test/test3/test/ file1.sol file2.sol");
         process.exit(1);
     }
+    const SYSTEM_PROMPT = `You are a solidity expert your duty is to write code inside of pre-generated snippets,
+    YOU CANNOT modify lines with // UML at the end use a regex to check  if the line is modifiable: .*//\s*UML$.
+    you should use only openzeppelin stuff when neeeded, never reimplement stuff which already exists.
+    to base your implementation look at the files inside of the test/*.t.sol directory they contain the invariants of the system. 
+    you have to implement the snippets found at src/*.sol then you after everything compiles they will be tested by a fuzzy tester and z3 solver,anything
+    which will tell you if they find any problems you will finish your work when nobody tells you anything.`;
     const srcPath = path.resolve(args[0]);
     const umlDescription = args[1];
     const invariantPath = args[2];
@@ -124,7 +130,9 @@ async function main() {
         console.error("Error: No moddable files specified");
         process.exit(1);
     }
-    const contractSkeleton = getContractSkeleton(path.dirname(srcPath));
+    // The srcPath is a file, extract its directory for cwd operations
+    const srcDir = path.dirname(srcPath);
+    const contractSkeleton = getContractSkeleton(srcDir);
     console.log("=".repeat(60));
     console.log("SOLIDITY CODE IMPLEMENTATION WORKFLOW");
     console.log("=".repeat(60));
@@ -180,8 +188,9 @@ ${contractSkeleton}
     for await (const message of (0, sdk_1.query)({
         prompt,
         options: {
+            systemPrompt: SYSTEM_PROMPT,
             pathToQwenExecutable: "qwen",
-            cwd: srcPath,
+            cwd: srcDir,
             permissionMode: "auto-edit",
             mcpServers: {
                 foundry_utils: server,
@@ -206,7 +215,7 @@ ${contractSkeleton}
         console.log(`VERIFICATION ITERATION ${iteration}`);
         console.log("=".repeat(60));
         console.log("\n[1/2] Running Foundry fuzzing...");
-        const contractDir = path.dirname(srcPath);
+        const contractDir = srcDir;
         const foundryResult = runFoundryTest(contractDir);
         if (foundryResult.success) {
             console.log("✓ Foundry tests passed");
@@ -236,6 +245,7 @@ FIX:
 - Fix implementation
 - Return the corrected contract for display
 `;
+            // TODO fix permission issues
             fullResponse = "";
             const server = (0, sdk_1.createSdkMcpServer)({
                 name: "foundry_utils",
@@ -244,7 +254,9 @@ FIX:
             for await (const message of (0, sdk_1.query)({
                 prompt: refinementPrompt,
                 options: {
+                    systemPrompt: SYSTEM_PROMPT,
                     pathToQwenExecutable: "qwen",
+                    cwd: srcDir,
                     permissionMode: "auto-edit",
                     mcpServers: {
                         foundry_utils: server,
